@@ -228,11 +228,12 @@ def drawMatches(img1, kp1, img2, kp2, matches):
 def orb(img1,img2):
     img1 = cv2.imread(img1,0) # queryImage
     img2 = cv2.imread(img2,0) # trainImage
+    h, w = img1.shape[:2]
 
-    # Initiate SIFT detector
+    # Initiate ORB detector
     orb = cv2.ORB()
 
-    # find the keypoints and descriptors with SIFT
+    # find the keypoints and descriptors with ORB
     kp1, des1 = orb.detectAndCompute(img1,None)
     kp2, des2 = orb.detectAndCompute(img2,None)
 
@@ -247,8 +248,7 @@ def orb(img1,img2):
         if m.distance < 0.75*n.distance:
             good.append([m])
 
-    #value determines how many matches to show
-    drawMatches(img1, kp1, img2, kp2, good[:])
+    #drawMatches(img1, kp1, img2, kp2, good[:])
 
     MIN_MATCH_COUNT = 10
 
@@ -257,7 +257,45 @@ def orb(img1,img2):
         dst_pts = np.float32([ kp2[m[0].trainIdx].pt for m in good ]).reshape(-1,1,2)
 
         M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+        print M
         matchesMask = mask.ravel().tolist()
+
+        '''
+        '''
+        warp = cv2.warpPerspective(img1, M, (w, h))
+        cv2.imwrite("warp.jpg", warp)
+        img1 = cv2.imread("warp.jpg",0) # queryImage
+
+        # Initiate ORB detector
+        orb = cv2.ORB()
+
+        # find the keypoints and descriptors with ORB
+        kp1, des1 = orb.detectAndCompute(img1,None)
+        kp2, des2 = orb.detectAndCompute(img2,None)
+
+        # create BFMatcher object
+        bf = cv2.BFMatcher()
+        #returns list of lists of matches
+        matches = bf.knnMatch(des1,des2, k=2)
+
+        # Apply ratio test
+        good = []
+        for m,n in matches:
+            if m.distance < 0.75*n.distance:
+                good.append([m])
+
+        #drawMatches(img1, kp1, img2, kp2, good[:])
+
+        MIN_MATCH_COUNT = 10
+        if len(good)>MIN_MATCH_COUNT:
+            src_pts = np.float32([ kp1[m[0].queryIdx].pt for m in good ]).reshape(-1,1,2)
+            dst_pts = np.float32([ kp2[m[0].trainIdx].pt for m in good ]).reshape(-1,1,2)
+
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+            print M
+            matchesMask = mask.ravel().tolist()
+        '''
+        '''
 
         h,w = img1.shape
         pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
@@ -278,8 +316,8 @@ def orb(img1,img2):
 
 def draw(img, corners, imgpts):
     corner = tuple(corners[0].ravel())
-    cv2.line(img, corner, tuple(-imgpts[0].ravel()), (255,0,0), 5)
-    cv2.line(img, corner, tuple(-imgpts[1].ravel()), (0,255,0), 5)
+    cv2.line(img, corner, tuple(imgpts[0].ravel()), (255,0,0), 5)
+    cv2.line(img, corner, tuple(imgpts[1].ravel()), (0,255,0), 5)
     cv2.line(img, corner, tuple(imgpts[2].ravel()), (0,0,255), 5)
     cv2.imwrite("3dpoint.jpg", img)
 
@@ -294,6 +332,7 @@ def threeDPoints(corners):
         dist = calibrations['dist']
         rvecs = calibrations['rvecs']
         tvecs = calibrations['tvecs']
+
         flattenR = []
         for x in rvecs:
             for y in x:
@@ -376,7 +415,8 @@ def draw_teapot(size):
 def setup():
     """ Setup window and pygame environment. """
     pygame.init()
-    window = pygame.display.set_mode((800,747),OPENGL | DOUBLEBUF)
+    display = (800, 747)
+    window = pygame.display.set_mode(display,DOUBLEBUF|OPENGL)
     return window
 
 def my_calibration(sz):
@@ -450,7 +490,9 @@ ap.add_argument("-s", "--sceneImage", required=True,
 	help="path to input image")
 args = vars(ap.parse_args())
 
-#calibration and pattern pose portion
+'''
+Feature matching and pose estimation
+'''
 img1 = args["queryImage"]
 img2 = args["sceneImage"]
 transformSurface()
@@ -460,25 +502,32 @@ corners = orb(img1,img2)
 threeDPoints(np.array(corners[0][0], dtype=np.float32))
 
 
-#3d rendering portion
+'''
+Calibration
+'''
 K = my_calibration((747,800))
 
 cam1 = Camera( np.hstack((K,np.dot(K,np.array([[0],[0],[-1]])) )) )
 cam2 = Camera(np.dot(corners[1],cam1.P))
+
 A = np.dot(linalg.inv(K),cam2.P[:,:3])
 A = np.array([A[:,0],A[:,1],np.cross(A[:,0],A[:,1])]).T
-cam2.P[:,:3] = np.dot(K,A)
 
+cam2.P[:,:3] = np.dot(K,A)
 
 Rt = np.dot(linalg.inv(K),cam2.P)
 
-img = Image.open('3dpoint.jpg')
+'''
+3d rendering
+'''
+img = Image.open(args['sceneImage'])
 img.save( '3dpoint.bmp', 'bmp')
+
 window = setup()
 draw_background("3dpoint.bmp")
 set_projection_from_camera(K)
 set_modelview_from_camera(Rt)
-draw_teapot(0.6)
+draw_teapot(0.2)
 
 while True:
     event = pygame.event.poll()
