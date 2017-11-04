@@ -1,3 +1,4 @@
+import math
 import cv2
 import numpy as np
 import argparse
@@ -13,6 +14,7 @@ import pygame, pygame.image
 from pygame.locals import *
 import pickle
 from PIL import Image
+from PIL.ExifTags import TAGS
 from scipy import linalg
 
 
@@ -97,8 +99,8 @@ def four_point_transform(image, pts):
 	# return the warped image
 	return warped
 
-def transformSurface():
-    image = cv2.imread(args["sceneImage"])
+def transformSurface(img):
+    image = cv2.imread(img)
     ratio = image.shape[0] / 500.0
     orig = image.copy()
     image = imutils.resize(image, height = 500)
@@ -256,50 +258,51 @@ def orb(img1,img2):
         src_pts = np.float32([ kp1[m[0].queryIdx].pt for m in good ]).reshape(-1,1,2)
         dst_pts = np.float32([ kp2[m[0].trainIdx].pt for m in good ]).reshape(-1,1,2)
 
-        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-        print M
+        roughM, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
         matchesMask = mask.ravel().tolist()
 
+
         '''
+        Second pass to refine homography
         '''
-        warp = cv2.warpPerspective(img1, M, (w, h))
-        cv2.imwrite("warp.jpg", warp)
-        img1 = cv2.imread("warp.jpg",0) # queryImage
-
-        # Initiate ORB detector
-        orb = cv2.ORB()
-
-        # find the keypoints and descriptors with ORB
-        kp1, des1 = orb.detectAndCompute(img1,None)
-        kp2, des2 = orb.detectAndCompute(img2,None)
-
-        # create BFMatcher object
-        bf = cv2.BFMatcher()
-        #returns list of lists of matches
-        matches = bf.knnMatch(des1,des2, k=2)
-
-        # Apply ratio test
-        good = []
-        for m,n in matches:
-            if m.distance < 0.75*n.distance:
-                good.append([m])
-
-        #drawMatches(img1, kp1, img2, kp2, good[:])
-
-        MIN_MATCH_COUNT = 10
-        if len(good)>MIN_MATCH_COUNT:
-            src_pts = np.float32([ kp1[m[0].queryIdx].pt for m in good ]).reshape(-1,1,2)
-            dst_pts = np.float32([ kp2[m[0].trainIdx].pt for m in good ]).reshape(-1,1,2)
-
-            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-            print M
-            matchesMask = mask.ravel().tolist()
-        '''
-        '''
+        # warp = cv2.warpPerspective(img1, roughM, (w, h))
+        # cv2.imwrite("warp.jpg", warp)
+        # img1 = cv2.imread("warp.jpg",0) # queryImage
+        #
+        # # Initiate ORB detector
+        # orb = cv2.ORB()
+        #
+        # # find the keypoints and descriptors with ORB
+        # kp1, des1 = orb.detectAndCompute(img1,None)
+        # kp2, des2 = orb.detectAndCompute(img2,None)
+        #
+        # # create BFMatcher object
+        # bf = cv2.BFMatcher()
+        # #returns list of lists of matches
+        # matches = bf.knnMatch(des1,des2, k=2)
+        #
+        # # Apply ratio test
+        # good = []
+        # for m,n in matches:
+        #     if m.distance < 0.75*n.distance:
+        #         good.append([m])
+        #
+        # #drawMatches(img1, kp1, img2, kp2, good[:])
+        #
+        # MIN_MATCH_COUNT = 10
+        # if len(good)>MIN_MATCH_COUNT:
+        #     src_pts = np.float32([ kp1[m[0].queryIdx].pt for m in good ]).reshape(-1,1,2)
+        #     dst_pts = np.float32([ kp2[m[0].trainIdx].pt for m in good ]).reshape(-1,1,2)
+        #
+        #     refinedM, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+        #     matchesMask = mask.ravel().tolist()
+        # '''
+        # '''
+        # resultM = np.dot(roughM, refinedM)
 
         h,w = img1.shape
         pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
-        dst = cv2.perspectiveTransform(pts,M)
+        dst = cv2.perspectiveTransform(pts,roughM)
 
         corners = [np.int32(dst)]
         cv2.polylines(img2,corners,True,255,3, cv2.CV_AA)
@@ -312,7 +315,7 @@ def orb(img1,img2):
 
     drawMatches(img1,kp1,img2,kp2,good[:])
 
-    return (corners,M)
+    return (corners,roughM)
 
 def draw(img, corners, imgpts):
     corner = tuple(corners[0].ravel())
@@ -428,8 +431,9 @@ def my_calibration(sz):
     K[1,2] = 0.5*row
     return K
 
-def set_projection_from_camera(K):
+def set_projection_from_camera(K, sz, mtx, aperture):
     """  Set view from a camera calibration matrix. """
+    matrix = cv2.calibrationMatrixValues(mtx, sz, aperture[0], aperture[1])
 
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
@@ -444,7 +448,7 @@ def set_projection_from_camera(K):
     far = 100.0
 
     # set perspective
-    gluPerspective(fovy,aspect,near,far)
+    gluPerspective(matrix[1],aspect,near,far)
     glViewport(0,0,800,747)
 
 
@@ -495,27 +499,132 @@ Feature matching and pose estimation
 '''
 img1 = args["queryImage"]
 img2 = args["sceneImage"]
-transformSurface()
+transformSurface(args["sceneImage"])
 gray = cv2.imread(args['sceneImage'],0)
 h, w = gray.shape[:2]
 corners = orb(img1,img2)
-threeDPoints(np.array(corners[0][0], dtype=np.float32))
+
+homography = corners[1]
+
+imgpts = corners[0][0]
+newpts = []
+for x in imgpts:
+    pts = (x[0][0], x[0][1])
+    newpts.append(pts)
+newpts = np.array(newpts, dtype="double")
+
+# threeD = []
+# for x in imgpts:
+#     pts = np.append(x,[1])
+#     pts = [np.matmul(np.linalg.inv(homography), pts)]
+#     pts = (pts[0][0], pts[0][1], pts[0][2])
+#     threeD.append(pts)
+# print threeD
+# print newpts
+threeD = [(0,0,0), (newpts[1][0],newpts[1][1],0), (newpts[2][0],newpts[2][1],0), (newpts[3][0],newpts[3][1],0)]
+threeD = np.array(threeD)
+
+#threeDPoints(np.array(corners[0][0], dtype=np.float32))
 
 
 '''
 Calibration
 '''
-K = my_calibration((747,800))
+calibrations = np.load("calibrate.npz")
+mtx = calibrations['mtx'] #camera intrinsic parameters
+dist = calibrations['dist']
+rvecs = calibrations['rvecs'] #camera extrinsic parameters
+tvecs = calibrations['tvecs'] #camera extrinsic parameters
+#dist = np.array([np.zeros(4)])
 
-cam1 = Camera( np.hstack((K,np.dot(K,np.array([[0],[0],[-1]])) )) )
-cam2 = Camera(np.dot(corners[1],cam1.P))
 
-A = np.dot(linalg.inv(K),cam2.P[:,:3])
-A = np.array([A[:,0],A[:,1],np.cross(A[:,0],A[:,1])]).T
+retval, rvecs, tvecs = cv2.solvePnP(threeD, newpts, mtx, dist, flags=cv2.CV_ITERATIVE)
 
-cam2.P[:,:3] = np.dot(K,A)
+(point2D, jacobian) = cv2.projectPoints(threeD, rvecs, tvecs, mtx, dist)
 
-Rt = np.dot(linalg.inv(K),cam2.P)
+for p in newpts:
+    cv2.circle(gray, (int(p[0]), int(p[1])), 3, (0,0,255), -1)
+
+p1 = ( int(newpts[0][0]), int(newpts[0][1]))
+p2 = ( int(point2D[0][0][0]), int(point2D[0][0][1]))
+cv2.line(gray, p1, p2, (255,0,0), 2)
+
+p1 = ( int(newpts[1][0]), int(newpts[1][1]))
+p2 = ( int(point2D[1][0][0]), int(point2D[1][0][1]))
+cv2.line(gray, p1, p2, (255,0,0), 2)
+
+p1 = ( int(newpts[2][0]), int(newpts[2][1]))
+p2 = ( int(point2D[2][0][0]), int(point2D[2][0][1]))
+cv2.line(gray, p1, p2, (255,0,0), 2)
+
+p1 = ( int(newpts[3][0]), int(newpts[3][1]))
+p2 = ( int(point2D[3][0][0]), int(point2D[3][0][1]))
+cv2.line(gray, p1, p2, (255,0,0), 2)
+
+# Display image
+cv2.imwrite("3dprojection.jpg", gray)
+
+rvecs = cv2.Rodrigues(rvecs)[0]
+
+exMatrix = np.concatenate((rvecs, tvecs), axis=1)
+
+projMatrix = np.matmul(mtx, exMatrix)
+print projMatrix
+
+# rvecs = calibrations['rvecs'] #camera extrinsic parameters
+# avg1 =  0
+# avg2 =  0
+# avg3 =  0
+# numElements = 0
+# for x in rvecs:
+#     numElements += 1
+#     avg1 += x[0][0]
+#     avg2 += x[1][0]
+#     avg3 += x[2][0]
+#
+# avg1 = avg1/numElements
+# avg2 = avg2/numElements
+# avg3 = avg3/numElements
+#
+# rvecs = np.array([[avg1], [avg2], [avg3]])
+#
+# avg1 =  0
+# avg2 =  0
+# avg3 =  0
+# numElements = 0
+# for x in tvecs:
+#     numElements += 1
+#     avg1 += x[0][0]
+#     avg2 += x[1][0]
+#     avg3 += x[2][0]
+#
+# avg1 = avg1/numElements
+# avg2 = avg2/numElements
+# avg3 = avg3/numElements
+#
+# tvecs = np.array([[avg1], [avg2], [avg3]])
+
+
+img = Image.open(args['sceneImage'])
+exif_data = img._getexif()
+ret = {}
+for tag, value in exif_data.items():
+        decoded = TAGS.get(tag, tag)
+        ret[decoded] = value
+
+aperture = ret['ApertureValue']
+
+K = mtx
+
+# cam1 = Camera( np.hstack((K,np.dot(K,np.array([[0],[0],[-1]])) )) )
+# cam2 = Camera(np.dot(corners[1],cam1.P))
+#
+# A = np.dot(linalg.inv(K),cam2.P[:,:3])
+# A = np.array([A[:,0],A[:,1],np.cross(A[:,0],A[:,1])]).T
+#
+# cam2.P[:,:3] = np.dot(K,A)
+#
+# Rt = np.dot(linalg.inv(K),cam2.P)
 
 '''
 3d rendering
@@ -525,9 +634,9 @@ img.save( '3dpoint.bmp', 'bmp')
 
 window = setup()
 draw_background("3dpoint.bmp")
-set_projection_from_camera(K)
-set_modelview_from_camera(Rt)
-draw_teapot(0.2)
+set_projection_from_camera(K,(747,800), mtx, aperture)
+set_modelview_from_camera(projMatrix)
+draw_teapot(0.6)
 
 while True:
     event = pygame.event.poll()
