@@ -112,7 +112,7 @@ def transformSurface(img):
     edged = cv2.Canny(gray, 75, 200)
 
     # show the original image and the edge detected image
-    print "STEP 1: Edge Detection"
+    #print "STEP 1: Edge Detection"
     # cv2.imshow("Image", image)
     # cv2.imshow("Edged", edged)
     # cv2.waitKey(0)
@@ -136,7 +136,7 @@ def transformSurface(img):
             break
 
     # show the contour (outline) of the piece of paper
-    print "STEP 2: Find contours of paper"
+    #print "STEP 2: Find contours of paper"
     # cv2.drawContours(image, [screenCnt], -1, (0, 255, 0), 2)
     # cv2.imshow("Outline", image)
     # cv2.waitKey(0)
@@ -148,7 +148,7 @@ def transformSurface(img):
 
 
     # show the original and scanned images
-    print "STEP 3: Apply perspective transform"
+    #print "STEP 3: Apply perspective transform"
     # cv2.imshow("Original", imutils.resize(orig, height = 650))
     # cv2.imshow("Scanned", imutils.resize(warped, height = 650))
     # cv2.waitKey(0)
@@ -157,28 +157,6 @@ def transformSurface(img):
 
 
 def drawMatches(img1, kp1, img2, kp2, matches):
-    """
-    My own implementation of cv2.drawMatches as OpenCV 2.4.9
-    does not have this function available but it's supported in
-    OpenCV 3.0.0
-
-    This function takes in two images with their associated
-    keypoints, as well as a list of DMatch data structure (matches)
-    that contains which keypoints matched in which images.
-
-    An image will be produced where a montage is shown with
-    the first image followed by the second image beside it.
-
-    Keypoints are delineated with circles, while lines are connected
-    between matching keypoints.
-
-    img1,img2 - Grayscale images
-    kp1,kp2 - Detected list of keypoints through any of the OpenCV keypoint
-              detection algorithms
-    matches - A list of matches of corresponding keypoints through any
-              OpenCV keypoint matching algorithm
-    """
-
     # Create a new output image that concatenates the two images together
     # (a.k.a) a montage
     rows1 = img1.shape[0]
@@ -228,16 +206,16 @@ def drawMatches(img1, kp1, img2, kp2, matches):
 
 
 def orb(img1,img2):
-    img1 = cv2.imread(img1,0) # queryImage
-    img2 = cv2.imread(img2,0) # trainImage
-    h, w = img1.shape[:2]
+    query = cv2.imread(img1,0) # queryImage
+    scene = cv2.imread(img2,0) # trainImage
+    h, w = scene.shape[:2]
 
     # Initiate ORB detector
     orb = cv2.ORB()
 
     # find the keypoints and descriptors with ORB
-    kp1, des1 = orb.detectAndCompute(img1,None)
-    kp2, des2 = orb.detectAndCompute(img2,None)
+    kp1, des1 = orb.detectAndCompute(query,None)
+    kp2, des2 = orb.detectAndCompute(scene,None)
 
     # create BFMatcher object
     bf = cv2.BFMatcher()
@@ -265,47 +243,49 @@ def orb(img1,img2):
         '''
         Second pass to refine homography
         '''
-        # warp = cv2.warpPerspective(img1, roughM, (w, h))
-        # cv2.imwrite("warp.jpg", warp)
-        # img1 = cv2.imread("warp.jpg",0) # queryImage
-        #
-        # # Initiate ORB detector
-        # orb = cv2.ORB()
-        #
-        # # find the keypoints and descriptors with ORB
-        # kp1, des1 = orb.detectAndCompute(img1,None)
-        # kp2, des2 = orb.detectAndCompute(img2,None)
-        #
-        # # create BFMatcher object
-        # bf = cv2.BFMatcher()
-        # #returns list of lists of matches
-        # matches = bf.knnMatch(des1,des2, k=2)
-        #
-        # # Apply ratio test
-        # good = []
-        # for m,n in matches:
-        #     if m.distance < 0.75*n.distance:
-        #         good.append([m])
-        #
-        # #drawMatches(img1, kp1, img2, kp2, good[:])
-        #
-        # MIN_MATCH_COUNT = 10
-        # if len(good)>MIN_MATCH_COUNT:
-        #     src_pts = np.float32([ kp1[m[0].queryIdx].pt for m in good ]).reshape(-1,1,2)
-        #     dst_pts = np.float32([ kp2[m[0].trainIdx].pt for m in good ]).reshape(-1,1,2)
-        #
-        #     refinedM, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-        #     matchesMask = mask.ravel().tolist()
-        # '''
-        # '''
-        # resultM = np.dot(roughM, refinedM)
+        warp = cv2.warpPerspective(scene, roughM, (w, h), flags=cv2.WARP_INVERSE_MAP+cv2.INTER_CUBIC)
+        cv2.imwrite("warp.jpg", warp)
+        warpedScene = cv2.imread("warp.jpg",0) # queryImage
 
-        h,w = img1.shape
+        # Initiate ORB detector
+        orb = cv2.ORB()
+
+        # find the keypoints and descriptors with ORB
+        kp1, des1 = orb.detectAndCompute(query,None)
+        kp2, des2 = orb.detectAndCompute(warpedScene,None)
+
+        # create BFMatcher object
+        bf = cv2.BFMatcher()
+        #returns list of lists of matches
+        matches = bf.knnMatch(des1,des2, k=2)
+
+        # Apply ratio test
+        good = []
+        for m,n in matches:
+            if m.distance < 0.75*n.distance:
+                good.append([m])
+
+        #drawMatches(img1, kp1, img2, kp2, good[:])
+
+        MIN_MATCH_COUNT = 10
+        if len(good)>MIN_MATCH_COUNT:
+            src_pts = np.float32([ kp1[m[0].queryIdx].pt for m in good ]).reshape(-1,1,2)
+            dst_pts = np.float32([ kp2[m[0].trainIdx].pt for m in good ]).reshape(-1,1,2)
+
+            refinedM, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+            matchesMask = mask.ravel().tolist()
+
+        resultM = np.matmul(roughM, refinedM)
+        '''
+        '''
+
+        h,w = query.shape
         pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
-        dst = cv2.perspectiveTransform(pts,roughM)
+        dst = cv2.perspectiveTransform(pts,resultM)
 
         corners = [np.int32(dst)]
-        cv2.polylines(img2,corners,True,255,3, cv2.CV_AA)
+        # draws the outline of the query img as it would be found in the scene
+        #cv2.polylines(warpedScene,corners,True,255,3, cv2.CV_AA)
 
 
     else:
@@ -313,9 +293,9 @@ def orb(img1,img2):
         matchesMask = None
 
 
-    drawMatches(img1,kp1,img2,kp2,good[:])
+    drawMatches(query,kp1,warpedScene,kp2,good[:])
 
-    return (corners,roughM)
+    return (corners,resultM)
 
 def draw(img, corners, imgpts):
     corner = tuple(corners[0].ravel())
@@ -370,12 +350,12 @@ def threeDPoints(corners):
 
 
 
-def draw_background(imname):
+def draw_background(imname, sz):
     """  Draw background image using a quad. """
 
     # load background image (should be .bmp) to OpenGL texture
     bg_image = pygame.image.load(imname).convert()
-    bg_image = pygame.transform.scale(bg_image, (800, 747))
+    bg_image = pygame.transform.scale(bg_image, sz)
     bg_data = pygame.image.tostring(bg_image,"RGBX",1)
 
     glMatrixMode(GL_MODELVIEW)
@@ -385,7 +365,7 @@ def draw_background(imname):
     # bind the texture
     glEnable(GL_TEXTURE_2D)
     glBindTexture(GL_TEXTURE_2D,glGenTextures(1))
-    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,800,747,0,GL_RGBA,GL_UNSIGNED_BYTE,bg_data)
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,sz[0],sz[1],0,GL_RGBA,GL_UNSIGNED_BYTE,bg_data)
     glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST)
     glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST)
 
@@ -440,8 +420,8 @@ def set_projection_from_camera(K, sz, mtx, aperture):
 
     fx = K[0,0]
     fy = K[1,1]
-    fovy = 2*np.arctan(0.5*747/fy)*180/np.pi
-    aspect = (800*fy)/(747*fx)
+    fovy = 2*np.arctan(0.5*sz[1]/fy)*sz[0]/np.pi
+    aspect = (fy)/(fx)
 
     # define the near and far clipping planes
     near = 0.1
@@ -449,7 +429,7 @@ def set_projection_from_camera(K, sz, mtx, aperture):
 
     # set perspective
     gluPerspective(matrix[1],aspect,near,far)
-    glViewport(0,0,800,747)
+    glViewport(0,0,sz[0],sz[1])
 
 
 def set_modelview_from_camera(Rt):
@@ -497,21 +477,33 @@ args = vars(ap.parse_args())
 '''
 Feature matching and pose estimation
 '''
-img1 = args["queryImage"]
-img2 = args["sceneImage"]
-transformSurface(args["sceneImage"])
-gray = cv2.imread(args['sceneImage'],0)
+query = args["queryImage"]
+scene = args["sceneImage"]
+
+# extract receipt from the scene
+transformSurface(scene)
+
+gray = cv2.imread(scene,0)
 h, w = gray.shape[:2]
-corners = orb(img1,img2)
 
+# perform feature matching and calculate homography
+corners = orb(query,scene)
 homography = corners[1]
+'''
+'''
 
+
+'''
+Calibration
+'''
+# format corners for solvePnP
 imgpts = corners[0][0]
 newpts = []
 for x in imgpts:
     pts = (x[0][0], x[0][1])
     newpts.append(pts)
 newpts = np.array(newpts, dtype="double")
+
 
 # threeD = []
 # for x in imgpts:
@@ -521,29 +513,29 @@ newpts = np.array(newpts, dtype="double")
 #     threeD.append(pts)
 # print threeD
 # print newpts
+
+# initialize world coordinates based on corners found with homography
 threeD = [(0,0,0), (newpts[1][0],newpts[1][1],0), (newpts[2][0],newpts[2][1],0), (newpts[3][0],newpts[3][1],0)]
 threeD = np.array(threeD)
 
 #threeDPoints(np.array(corners[0][0], dtype=np.float32))
 
 
-'''
-Calibration
-'''
+
 calibrations = np.load("calibrate.npz")
 mtx = calibrations['mtx'] #camera intrinsic parameters
 dist = calibrations['dist']
 rvecs = calibrations['rvecs'] #camera extrinsic parameters
 tvecs = calibrations['tvecs'] #camera extrinsic parameters
-#dist = np.array([np.zeros(4)])
 
-
+# calulcate rotation and translation vectors
 retval, rvecs, tvecs = cv2.solvePnP(threeD, newpts, mtx, dist, flags=cv2.CV_ITERATIVE)
 
+# draw 3d lines showing pose of receipt
 (point2D, jacobian) = cv2.projectPoints(threeD, rvecs, tvecs, mtx, dist)
 
 for p in newpts:
-    cv2.circle(gray, (int(p[0]), int(p[1])), 3, (0,0,255), -1)
+    cv2.circle(gray, (int(p[0]), int(p[1])), 20, (0,0,255), -1)
 
 p1 = ( int(newpts[0][0]), int(newpts[0][1]))
 p2 = ( int(point2D[0][0][0]), int(point2D[0][0][1]))
@@ -561,60 +553,17 @@ p1 = ( int(newpts[3][0]), int(newpts[3][1]))
 p2 = ( int(point2D[3][0][0]), int(point2D[3][0][1]))
 cv2.line(gray, p1, p2, (255,0,0), 2)
 
-# Display image
 cv2.imwrite("3dprojection.jpg", gray)
 
+# [R]
 rvecs = cv2.Rodrigues(rvecs)[0]
 
+# [R|t] matrix
 exMatrix = np.concatenate((rvecs, tvecs), axis=1)
 
+# K[R|t]
 projMatrix = np.matmul(mtx, exMatrix)
-print projMatrix
 
-# rvecs = calibrations['rvecs'] #camera extrinsic parameters
-# avg1 =  0
-# avg2 =  0
-# avg3 =  0
-# numElements = 0
-# for x in rvecs:
-#     numElements += 1
-#     avg1 += x[0][0]
-#     avg2 += x[1][0]
-#     avg3 += x[2][0]
-#
-# avg1 = avg1/numElements
-# avg2 = avg2/numElements
-# avg3 = avg3/numElements
-#
-# rvecs = np.array([[avg1], [avg2], [avg3]])
-#
-# avg1 =  0
-# avg2 =  0
-# avg3 =  0
-# numElements = 0
-# for x in tvecs:
-#     numElements += 1
-#     avg1 += x[0][0]
-#     avg2 += x[1][0]
-#     avg3 += x[2][0]
-#
-# avg1 = avg1/numElements
-# avg2 = avg2/numElements
-# avg3 = avg3/numElements
-#
-# tvecs = np.array([[avg1], [avg2], [avg3]])
-
-
-img = Image.open(args['sceneImage'])
-exif_data = img._getexif()
-ret = {}
-for tag, value in exif_data.items():
-        decoded = TAGS.get(tag, tag)
-        ret[decoded] = value
-
-aperture = ret['ApertureValue']
-
-K = mtx
 
 # cam1 = Camera( np.hstack((K,np.dot(K,np.array([[0],[0],[-1]])) )) )
 # cam2 = Camera(np.dot(corners[1],cam1.P))
@@ -625,16 +574,36 @@ K = mtx
 # cam2.P[:,:3] = np.dot(K,A)
 #
 # Rt = np.dot(linalg.inv(K),cam2.P)
+'''
+'''
+
+
 
 '''
 3d rendering
 '''
-img = Image.open(args['sceneImage'])
+
+# read Exif header for aperture
+img = Image.open(scene)
+exif_data = img._getexif()
+ret = {}
+for tag, value in exif_data.items():
+        decoded = TAGS.get(tag, tag)
+        ret[decoded] = value
+
+aperture = ret['ApertureValue']
+
+K = mtx
+
+# make .bmp file of scene for OpenGL
+img = Image.open(scene)
 img.save( '3dpoint.bmp', 'bmp')
 
+# render object
+sz = (800, 747)
 window = setup()
-draw_background("3dpoint.bmp")
-set_projection_from_camera(K,(747,800), mtx, aperture)
+draw_background("3dpoint.bmp", sz)
+set_projection_from_camera(K,sz, mtx, aperture)
 set_modelview_from_camera(projMatrix)
 draw_teapot(0.6)
 
