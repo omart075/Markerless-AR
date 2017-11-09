@@ -421,14 +421,14 @@ def set_projection_from_camera(K, sz, mtx, aperture):
     fx = K[0,0]
     fy = K[1,1]
     fovy = 2*np.arctan(0.5*sz[1]/fy)*sz[0]/np.pi
-    aspect = (fy)/(fx)
+    aspect = (sz[0]*fy)/(sz[1]*fx)
 
     # define the near and far clipping planes
     near = 0.1
     far = 100.0
 
     # set perspective
-    gluPerspective(matrix[1],aspect,near,far)
+    gluPerspective(fovy,aspect,near,far)
     glViewport(0,0,sz[0],sz[1])
 
 
@@ -489,6 +489,10 @@ h, w = gray.shape[:2]
 # perform feature matching and calculate homography
 corners = orb(query,scene)
 homography = corners[1]
+
+# R3 = np.cross(homography[:,0], homography[:,1])
+# homography = np.insert(homography, 2, R3, axis=1)
+
 '''
 '''
 
@@ -504,7 +508,6 @@ for x in imgpts:
     newpts.append(pts)
 newpts = np.array(newpts, dtype="double")
 
-
 # threeD = []
 # for x in imgpts:
 #     pts = np.append(x,[1])
@@ -515,7 +518,7 @@ newpts = np.array(newpts, dtype="double")
 # print newpts
 
 # initialize world coordinates based on corners found with homography
-threeD = [(0,0,0), (newpts[1][0],newpts[1][1],0), (newpts[2][0],newpts[2][1],0), (newpts[3][0],newpts[3][1],0)]
+threeD = [(0,0,0), (newpts[1][0],newpts[1][1],0), (newpts[2][0],newpts[2][1],0),(newpts[3][0],newpts[3][1],0)]
 threeD = np.array(threeD)
 
 #threeDPoints(np.array(corners[0][0], dtype=np.float32))
@@ -565,15 +568,17 @@ exMatrix = np.concatenate((rvecs, tvecs), axis=1)
 projMatrix = np.matmul(mtx, exMatrix)
 
 
-# cam1 = Camera( np.hstack((K,np.dot(K,np.array([[0],[0],[-1]])) )) )
-# cam2 = Camera(np.dot(corners[1],cam1.P))
-#
-# A = np.dot(linalg.inv(K),cam2.P[:,:3])
-# A = np.array([A[:,0],A[:,1],np.cross(A[:,0],A[:,1])]).T
-#
-# cam2.P[:,:3] = np.dot(K,A)
-#
-# Rt = np.dot(linalg.inv(K),cam2.P)
+
+K = my_calibration((3001, 4011))
+cam1 = Camera( np.hstack((K,np.dot(K,np.array([[0],[0],[-1]])) )) )
+cam2 = Camera(np.dot(corners[1],cam1.P))
+
+A = np.dot(linalg.inv(K),cam2.P[:,:3])
+A = np.array([A[:,0],A[:,1],np.cross(A[:,0],A[:,1])]).T
+
+cam2.P[:,:3] = np.dot(K,A)
+
+Rt = np.dot(linalg.inv(K),cam2.P)
 '''
 '''
 
@@ -593,19 +598,19 @@ for tag, value in exif_data.items():
 
 aperture = ret['ApertureValue']
 
-K = mtx
+#K = mtx
 
 # make .bmp file of scene for OpenGL
 img = Image.open(scene)
 img.save( '3dpoint.bmp', 'bmp')
 
-# render object
+#render object
 sz = (800, 747)
 window = setup()
 draw_background("3dpoint.bmp", sz)
 set_projection_from_camera(K,sz, mtx, aperture)
-set_modelview_from_camera(projMatrix)
-draw_teapot(0.6)
+set_modelview_from_camera(Rt)
+draw_teapot(0.2)
 
 while True:
     event = pygame.event.poll()
