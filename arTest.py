@@ -153,7 +153,7 @@ def transformSurface(img):
     # cv2.imshow("Scanned", imutils.resize(warped, height = 650))
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-    cv2.imwrite(args['queryImage'], warped)
+    cv2.imwrite("imgs/" + args['queryImage'], warped)
 
 
 def drawMatches(img1, kp1, img2, kp2, matches):
@@ -202,7 +202,7 @@ def drawMatches(img1, kp1, img2, kp2, matches):
         cv2.line(out, (int(x1),int(y1)), (int(x2)+cols1,int(y2)), (255,0,0), 1)
 
 
-    cv2.imwrite("orb.jpg", out)
+    cv2.imwrite("imgs/orb.jpg", out)
 
 
 def orb(img1,img2):
@@ -244,8 +244,8 @@ def orb(img1,img2):
         Second pass to refine homography
         '''
         warp = cv2.warpPerspective(scene, roughM, (w, h), flags=cv2.WARP_INVERSE_MAP+cv2.INTER_CUBIC)
-        cv2.imwrite("warp.jpg", warp)
-        warpedScene = cv2.imread("warp.jpg",0) # queryImage
+        cv2.imwrite("imgs/warp.jpg", warp)
+        warpedScene = cv2.imread("imgs/warp.jpg",0) # queryImage
 
         # Initiate ORB detector
         orb = cv2.ORB()
@@ -302,12 +302,12 @@ def draw(img, corners, imgpts):
     cv2.line(img, corner, tuple(imgpts[0].ravel()), (255,0,0), 5)
     cv2.line(img, corner, tuple(imgpts[1].ravel()), (0,255,0), 5)
     cv2.line(img, corner, tuple(imgpts[2].ravel()), (0,0,255), 5)
-    cv2.imwrite("3dpoint.jpg", img)
+    cv2.imwrite("imgs/3dpoint.jpg", img)
 
 
 def threeDPoints(corners):
     if corners.any():
-        gray = cv2.imread(args['sceneImage'],0)
+        gray = cv2.imread("imgs/"+args['sceneImage'],0)
         h, w = gray.shape[:2]
 
         calibrations = np.load("calibrate.npz")
@@ -477,8 +477,8 @@ args = vars(ap.parse_args())
 '''
 Feature matching and pose estimation
 '''
-query = args["queryImage"]
-scene = args["sceneImage"]
+query = "imgs/"+args["queryImage"]
+scene = "imgs/"+args["sceneImage"]
 
 # extract receipt from the scene
 transformSurface(scene)
@@ -556,7 +556,7 @@ p1 = ( int(newpts[3][0]), int(newpts[3][1]))
 p2 = ( int(point2D[3][0][0]), int(point2D[3][0][1]))
 cv2.line(gray, p1, p2, (255,0,0), 2)
 
-cv2.imwrite("3dprojection.jpg", gray)
+cv2.imwrite("imgs/3dprojection.jpg", gray)
 
 # [R]
 rvecs = cv2.Rodrigues(rvecs)[0]
@@ -571,7 +571,7 @@ projMatrix = np.matmul(mtx, exMatrix)
 
 K = my_calibration((3001, 4011))
 cam1 = Camera( np.hstack((K,np.dot(K,np.array([[0],[0],[-1]])) )) )
-cam2 = Camera(np.dot(corners[1],cam1.P))
+cam2 = Camera(np.dot(homography,cam1.P))
 
 A = np.dot(linalg.inv(K),cam2.P[:,:3])
 A = np.array([A[:,0],A[:,1],np.cross(A[:,0],A[:,1])]).T
@@ -602,15 +602,15 @@ aperture = ret['ApertureValue']
 
 # make .bmp file of scene for OpenGL
 img = Image.open(scene)
-img.save( '3dpoint.bmp', 'bmp')
+img.save( 'imgs/3dpoint.bmp', 'bmp')
 
 #render object
 sz = (800, 747)
 window = setup()
-draw_background("3dpoint.bmp", sz)
+draw_background("imgs/3dpoint.bmp", sz)
 set_projection_from_camera(K,sz, mtx, aperture)
 set_modelview_from_camera(Rt)
-draw_teapot(0.2)
+draw_teapot(0.09)
 
 while True:
     event = pygame.event.poll()
