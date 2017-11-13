@@ -127,7 +127,8 @@ def transformSurface(img):
     '''
     Apply transform to make query image
     '''
-    image = cv2.imread(img)
+    screenCnt = None
+    image = img
     ratio = image.shape[0] / 500.0
     orig = image.copy()
     image = imutils.resize(image, height = 500)
@@ -169,18 +170,19 @@ def transformSurface(img):
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
-    # apply the four point transform to obtain a top-down
-    # view of the original image
-    warped = four_point_transform(orig, screenCnt.reshape(4, 2) * ratio)
+    if screenCnt is not None:
+        # apply the four point transform to obtain a top-down
+        # view of the original image
+        warped = four_point_transform(orig, screenCnt.reshape(4, 2) * ratio)
 
 
-    # show the original and scanned images
-    #print "STEP 3: Apply perspective transform"
-    # cv2.imshow("Original", imutils.resize(orig, height = 650))
-    # cv2.imshow("Scanned", imutils.resize(warped, height = 650))
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-    cv2.imwrite("imgs/" + args['queryImage'], warped)
+        # show the original and scanned images
+        #print "STEP 3: Apply perspective transform"
+        # cv2.imshow("Original", imutils.resize(orig, height = 650))
+        # cv2.imshow("Scanned", imutils.resize(warped, height = 650))
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        cv2.imwrite("imgs/" + args['queryImage'], warped)
 
 
 def drawMatches(img1, kp1, img2, kp2, matches):
@@ -239,8 +241,10 @@ def orb(img1,img2):
     '''
     Detect and compute keypoints and descriptors to find refined homography
     '''
+    refinedM = None
+    roughM = None
     query = cv2.imread(img1,0) # queryImage
-    scene = cv2.imread(img2,0) # trainImage
+    scene = img2 # trainImage
     h, w = scene.shape[:2]
 
     # Initiate ORB detector
@@ -272,58 +276,66 @@ def orb(img1,img2):
         roughM, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
         matchesMask = mask.ravel().tolist()
 
+        if roughM is None:
+            return None
+        else:
 
-        '''
-        Second pass to refine homography
-        '''
-        warp = cv2.warpPerspective(scene, roughM, (w, h), flags=cv2.WARP_INVERSE_MAP+cv2.INTER_CUBIC)
-        cv2.imwrite("imgs/warp.jpg", warp)
-        warpedScene = cv2.imread("imgs/warp.jpg",0) # queryImage
 
-        # Initiate ORB detector
-        orb = cv2.ORB()
+            '''
+            Second pass to refine homography
+            '''
+            warp = cv2.warpPerspective(scene, roughM, (w, h), flags=cv2.WARP_INVERSE_MAP+cv2.INTER_CUBIC)
+            cv2.imwrite("imgs/warp.jpg", warp)
+            warpedScene = cv2.imread("imgs/warp.jpg",0) # queryImage
 
-        # find the keypoints and descriptors with ORB
-        kp1, des1 = orb.detectAndCompute(query,None)
-        kp2, des2 = orb.detectAndCompute(warpedScene,None)
+            # Initiate ORB detector
+            orb = cv2.ORB()
 
-        # create BFMatcher object
-        bf = cv2.BFMatcher()
-        #returns list of lists of matches
-        matches = bf.knnMatch(des1,des2, k=2)
+            # find the keypoints and descriptors with ORB
+            kp1, des1 = orb.detectAndCompute(query,None)
+            kp2, des2 = orb.detectAndCompute(warpedScene,None)
 
-        # Apply ratio test
-        good = []
-        for m,n in matches:
-            if m.distance < 0.75*n.distance:
-                good.append([m])
+            # create BFMatcher object
+            bf = cv2.BFMatcher()
+            #returns list of lists of matches
+            matches = bf.knnMatch(des1,des2, k=2)
 
-        #drawMatches(img1, kp1, img2, kp2, good[:])
+            # Apply ratio test
+            good = []
+            for m,n in matches:
+                if m.distance < 0.75*n.distance:
+                    good.append([m])
 
-        MIN_MATCH_COUNT = 10
-        if len(good)>MIN_MATCH_COUNT:
-            src_pts = np.float32([ kp1[m[0].queryIdx].pt for m in good ]).reshape(-1,1,2)
-            dst_pts = np.float32([ kp2[m[0].trainIdx].pt for m in good ]).reshape(-1,1,2)
+            #drawMatches(img1, kp1, img2, kp2, good[:])
 
-            refinedM, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-            matchesMask = mask.ravel().tolist()
+            MIN_MATCH_COUNT = 10
+            if len(good)>MIN_MATCH_COUNT:
+                src_pts = np.float32([ kp1[m[0].queryIdx].pt for m in good ]).reshape(-1,1,2)
+                dst_pts = np.float32([ kp2[m[0].trainIdx].pt for m in good ]).reshape(-1,1,2)
 
-        resultM = np.matmul(roughM, refinedM)
-        '''
-        '''
+                refinedM, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+                matchesMask = mask.ravel().tolist()
 
-        h,w = query.shape
-        pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
-        dst = cv2.perspectiveTransform(pts,resultM)
+            if refinedM is None:
+                return None
+            else:
+                resultM = np.matmul(roughM, refinedM)
+                '''
+                '''
 
-        corners = [np.int32(dst)]
-        # draws the outline of the query img as it would be found in the scene
-        #cv2.polylines(warpedScene,corners,True,255,3, cv2.CV_AA)
+                h,w = query.shape
+                pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+                dst = cv2.perspectiveTransform(pts,resultM)
+
+                corners = [np.int32(dst)]
+                # draws the outline of the query img as it would be found in the scene
+                #cv2.polylines(warpedScene,corners,True,255,3, cv2.CV_AA)
 
 
     else:
         print "Not enough matches are found - %d/%d" % (len(good),MIN_MATCH_COUNT)
         matchesMask = None
+        return None
 
 
     #drawMatches(query,kp1,warpedScene,kp2,good[:])
@@ -546,6 +558,7 @@ def reshape(width, height):
 TODO:
     - video feed
     - dynamic placement of objects
+    - load 3d objects
     - AR for found prices on receipt
 '''
 
@@ -557,151 +570,105 @@ ap.add_argument("-s", "--sceneImage", required=True,
 	help="path to input image")
 args = vars(ap.parse_args())
 
-# cap = cv2.VideoCapture("scene.avi")
-# while(cap.isOpened()):
-#     ret, frame = cap.read()
-#
-#     cv2.imshow('frame',frame)
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
-#
-# cap.release()
-# cv2.destroyAllWindows()
+query = None
+window = setup()
+cap = cv2.VideoCapture(0)
+while(cap.isOpened()):
+    ret, scene = cap.read()
+
+    '''
+    Feature matching
+    '''
+    if query is None:
+        # extract receipt from the scene
+        transformSurface(scene)
+
+        query = "imgs/"+args["queryImage"]
+        #scene = "imgs/"+args["sceneImage"]
+
+
+    gray = cv2.cvtColor(scene,cv2.COLOR_BGR2GRAY)
+    imHeight, imWidth = gray.shape[:2]
+
+    # perform feature matching and calculate homography
+    corners = orb(query,scene)
+    if corners is None:
+        continue
+    else:
+        homography = corners[1]
+    '''
+    '''
+
+    '''
+    Calibration
+    '''
+    # calibrations = np.load("calibrate.npz")
+    # mtx = calibrations['mtx'] #camera intrinsic parameters
+    # dist = calibrations['dist']
+    # rvecs = calibrations['rvecs']
+    # tvecs = calibrations['tvecs']
+
+
+    # intrinsic matrix K
+    K = my_calibration((imWidth, imHeight))
+
+    # camera matrix for query image
+    cam1 = Camera( np.hstack((K,np.dot(K,np.array([[0],[0],[-1]])) )) )
+    # camera matrix for scene image
+    cam2 = Camera(np.dot(homography,cam1.P))
+
+    # The first two columns and the fourth column of cam2.P are correct.
+    # Since we know that the first 3x3 block should be KR and R is a rotation matrix,
+    # we can correct the third column by multiplying cam2.P with the inverse of the
+    # calibration matrix and replacing the third column with the cross product of the first two.
+    A = np.dot(linalg.inv(K),cam2.P[:,:3])
+    A = np.array([A[:,0],A[:,1],np.cross(A[:,0],A[:,1])]).T
+
+    # camera pose [R|t]
+    cam2.P[:,:3] = np.dot(K,A)
+    Rt = np.dot(linalg.inv(K),cam2.P)
+    '''
+    '''
+
+    '''
+    3d rendering
+    '''
+    # make .bmp file of scene for OpenGL
+    cv2.imwrite( 'imgs/3dpoint.bmp', scene)
+
+    #render object
+    sz = (800, 747)
+    draw_background("imgs/3dpoint.bmp", sz)
+    set_projection_from_camera(K,sz, 0.0, 0.0, 0.0)
+    set_modelview_from_camera(Rt)
+    #load_and_draw_model('toyplane.obj')
+    draw_teapot(0.09)
+
+    event = pygame.event.poll()
+    if event.type in (QUIT,KEYDOWN):
+        # pygame.image.save(window, "screenshot.jpeg")
+        break
+    pygame.display.flip()
+    pygame.time.wait(1)
+
+
+    cv2.imshow('frame',scene)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
 
 
 #img = resizeImage("imgs/"+args['sceneImage'], 3000, 4000)
 
-'''
-Feature matching
-'''
-query = "imgs/"+args["queryImage"]
-scene = "imgs/"+args["sceneImage"]
-
-# extract receipt from the scene
-transformSurface(scene)
-
-gray = cv2.imread(scene,0)
-h, w = gray.shape[:2]
-
-# perform feature matching and calculate homography
-corners = orb(query,scene)
-homography = corners[1]
-'''
-'''
-
-
-'''
-Calibration
-'''
-# format corners for solvePnP
-imgpts = corners[0][0]
-newpts = []
-for x in imgpts:
-    pts = (x[0][0], x[0][1])
-    newpts.append(pts)
-newpts = np.array(newpts, dtype="double")
-
-
-# initialize world coordinates based on corners found with homography
-threeD = [(0,0,0), (newpts[1][0],newpts[1][1],0), (newpts[2][0],newpts[2][1],0),(newpts[3][0],newpts[3][1],0)]
-threeD = np.array(threeD)
-
-
-calibrations = np.load("calibrate.npz")
-mtx = calibrations['mtx'] #camera intrinsic parameters
-dist = calibrations['dist']
-rvecs = calibrations['rvecs']
-tvecs = calibrations['tvecs']
-
-# calulcate rotation and translation vectors
-# retval, rvecs, tvecs = cv2.solvePnP(threeD, newpts, mtx, dist, flags=cv2.CV_ITERATIVE)
-#
-# # draw 3d lines showing pose of receipt
-# (point2D, jacobian) = cv2.projectPoints(threeD, rvecs, tvecs, mtx, dist)
-#
-# for p in newpts:
-#     cv2.circle(gray, (int(p[0]), int(p[1])), 20, (0,0,255), -1)
-#
-# p1 = ( int(newpts[0][0]), int(newpts[0][1]))
-# p2 = ( int(point2D[0][0][0]), int(point2D[0][0][1]))
-# cv2.line(gray, p1, p2, (255,0,0), 2)
-#
-# p1 = ( int(newpts[1][0]), int(newpts[1][1]))
-# p2 = ( int(point2D[1][0][0]), int(point2D[1][0][1]))
-# cv2.line(gray, p1, p2, (255,0,0), 2)
-#
-# p1 = ( int(newpts[2][0]), int(newpts[2][1]))
-# p2 = ( int(point2D[2][0][0]), int(point2D[2][0][1]))
-# cv2.line(gray, p1, p2, (255,0,0), 2)
-#
-# p1 = ( int(newpts[3][0]), int(newpts[3][1]))
-# p2 = ( int(point2D[3][0][0]), int(point2D[3][0][1]))
-# cv2.line(gray, p1, p2, (255,0,0), 2)
-#
-# cv2.imwrite("imgs/3dprojection.jpg", gray)
-#
-# # [R]
-# rvecs = cv2.Rodrigues(rvecs)[0]
-#
-# # [R|t] matrix
-# exMatrix = np.concatenate((rvecs, tvecs), axis=1)
-#
-# # K[R|t]
-# projMatrix = np.matmul(mtx, exMatrix)
-
-
-imWidth, imHeight = Image.open("imgs/"+args['sceneImage']).size
-# intrinsic matrix K
-K = my_calibration((imWidth, imHeight))
-
-# camera matrix for query image
-cam1 = Camera( np.hstack((K,np.dot(K,np.array([[0],[0],[-1]])) )) )
-# camera matrix for scene image
-cam2 = Camera(np.dot(homography,cam1.P))
-
-# The first two columns and the fourth column of cam2.P are correct.
-# Since we know that the first 3x3 block should be KR and R is a rotation matrix,
-# we can correct the third column by multiplying cam2.P with the inverse of the
-# calibration matrix and replacing the third column with the cross product of the first two.
-A = np.dot(linalg.inv(K),cam2.P[:,:3])
-A = np.array([A[:,0],A[:,1],np.cross(A[:,0],A[:,1])]).T
-
-# camera pose [R|t]
-cam2.P[:,:3] = np.dot(K,A)
-Rt = np.dot(linalg.inv(K),cam2.P)
-'''
-'''
 
 
 
-'''
-3d rendering
-'''
 
-# read Exif header for aperture
-# img = Image.open(scene)
-# exif_data = img._getexif()
-# ret = {}
-# for tag, value in exif_data.items():
-#         decoded = TAGS.get(tag, tag)
-#         ret[decoded] = value
-#
-# aperture = ret['ApertureValue']
 
-#K = mtx
 
-# make .bmp file of scene for OpenGL
-img = Image.open(scene)
-img.save( 'imgs/3dpoint.bmp', 'bmp')
 
-#render object
-sz = (800, 747)
-window = setup()
-draw_background("imgs/3dpoint.bmp", sz)
-set_projection_from_camera(K,sz, 0.0, 0.0, 0.0)
-set_modelview_from_camera(Rt)
-#load_and_draw_model('toyplane.obj')
-draw_teapot(0.09)
 
 '''
 Scene1:
@@ -769,13 +736,7 @@ Scene5:
 # draw_teapot(0.09)
 
 
-while True:
-    event = pygame.event.poll()
-    if event.type in (QUIT,KEYDOWN):
-        # pygame.image.save(window, "screenshot.jpeg")
-        break
-    pygame.display.flip()
-    pygame.time.wait(1)
+
 
 # glutInit()
 # glutInitDisplayMode(GLUT_RGBA|GLUT_DOUBLE|GLUT_DEPTH)
