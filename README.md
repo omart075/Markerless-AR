@@ -1,12 +1,14 @@
 # Markerless-AR
 Markerless AR is the process of rendering a 3d object into a real world environment without the need of a marker.
 
+# Usage:
+
 # How it Works:
 There are a few things that need to be done in order to render 3d objects without a marker:
   * Find planar object
   * Feature Matching
   * Find Homography
-  * Calculate camera intrinsic and extrinsic values
+  * Calculate camera intrinsic and extrinsic matrices
   * Make above information understandable for OpenGL
 
 # 1. Find planar object:
@@ -19,7 +21,17 @@ There are a few things that need to be done in order to render 3d objects withou
   
   * There are a few different algorithms used for feature detecting such as ORB, SURF, SIFT. In this project we use ORB. Once the keypoints are found, we extract the descriptors. The descriptor is a vector that contains information about the feature point. 
   
-  * The matching of feature points detect is done using a knnMatch which does a search of the nearest neighbor from one set of descriptors to another set. Afterwards, a ratio test is applied to filter out outliers based on 
+  * The matching of feature points is done using a knnMatch which does a search of the nearest neighbor from one set of descriptors to another set. Afterwards, a ratio test is applied to filter out outliers based on distance between the two matches being compared.
+  
+# 3. Find Homography
+  * With the above filtered set of matched feature points, we can now calculate the homography. A homography is a 3x3 transformation matrix that maps the points of one image to another if they are part of the same planar surface.
+  
+  * If we wanted to, we could refine the homography by applying a warping perspective on the scene using the homography and reapplying the feature matching and descriptor extraction. 
+  
+# 4. Calculate Camera Intrinsic and Extrinsic Matrices
+  * The camera intrinsic matrix (referred to as K) is a 3x3 matrix used to transform 3d camera coordinates to 2d homogeneous image coordinates. The matrix is made up of the focal length (fx and fy), the principal point offsets (x0 and y0), and axis skew (s). This matrix can be calculated based on some assumptions but the focal length must be found with a specific calibration method. You can also obtain the entire matrix by calibrating the camera with a chessboard, which OpenCV provides a built in function just for that.
+  
+  * The camera extrinsic matrix ([R|t]) is a 4x3 matrix
 
 
 
