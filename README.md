@@ -31,7 +31,10 @@ There are a few things that need to be done in order to render 3d objects withou
 # 4. Calculate Camera Intrinsic and Extrinsic Matrices
   * The camera intrinsic matrix (referred to as K) is a 3x3 matrix used to transform 3d camera coordinates to 2d homogeneous image coordinates. The matrix is made up of the focal length (fx and fy), the principal point offsets (x0 and y0), and axis skew (s). This matrix can be calculated based on some assumptions but the focal length must be found with a specific calibration method. You can also obtain the entire matrix by calibrating the camera with a chessboard, which OpenCV provides a built in function just for that.
   
-  * The camera extrinsic matrix ([R|t]) is a 4x3 matrix
+  * The camera extrinsic matrix ([R|t]) is a 4x3 matrix which describes the camera's position in the real world and the direction it is pointing in. The matrix has two components: a 3x3 rotation matric (R) and a 3x1 translation matrix (t). This matrix can be extracted from the homography or using K and built in OpenCV functions.
+  
+# Make Results Understandable for OpenGL:
+  * Once we have all the components found above, we must format it so that OpenGL knows what to do with everything. This is done with built in functions
 
 
 
