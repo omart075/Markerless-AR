@@ -141,7 +141,7 @@ def transformSurface(image):
     # show the original image and the edge detected image
     #print "STEP 1: Edge Detection"
     # cv2.imshow("Image", image)
-    cv2.imwrite("imgs/edged.jpg", edged)
+    #cv2.imwrite("imgs/edged.jpg", edged)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
@@ -165,8 +165,8 @@ def transformSurface(image):
 
     # show the contour (outline) of the piece of paper
     #print "STEP 2: Find contours of paper"
-    cv2.drawContours(image, [screenCnt], -1, (0, 255, 0), 2)
-    cv2.imwrite("imgs/outline.jpg", image)
+    # cv2.drawContours(image, [screenCnt], -1, (0, 255, 0), 2)
+    # cv2.imwrite("imgs/outline.jpg", image)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
@@ -182,7 +182,7 @@ def transformSurface(image):
         # cv2.imshow("Scanned", imutils.resize(warped, height = 650))
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
-        cv2.imwrite("imgs/" + args['queryImage'], warped)
+        cv2.imwrite("imgs/query.jpg", warped)
 
 
 def drawMatches(img1, kp1, img2, kp2, matches):
@@ -556,25 +556,21 @@ def reshape(width, height):
 ###############################################################################
 '''
 TODO:
-    - video feed
     - dynamic placement of objects
     - load 3d objects
-    - AR for found prices on receipt
 '''
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-q", "--queryImage", required=True,
-	help="path to input image")
-ap.add_argument("-s", "--sceneImage", required=True,
-	help="path to input image")
+ap.add_argument("-s", "--sceneVideo", required=True,
+	help="name of input video")
 args = vars(ap.parse_args())
 
 query = None
 window = setup()
-# 0 = pocketcam
+
 # 1 = webcam
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture("imgs/" + args["sceneVideo"])
 while(cap.isOpened()):
     ret, scene = cap.read()
 
@@ -585,7 +581,7 @@ while(cap.isOpened()):
         # extract receipt from the scene
         transformSurface(scene)
 
-        query = "imgs/"+args["queryImage"]
+        query = "imgs/query.jpg"
         #scene = "imgs/"+args["sceneImage"]
 
 
@@ -641,6 +637,8 @@ while(cap.isOpened()):
     #render object
     sz = (800, 747)
     draw_background("imgs/3dpoint.bmp", sz)
+    # repeat next three lines to render multiple objs
+    # changing the 3 decimal values to the position of choice
     set_projection_from_camera(K,sz, 0.0, 0.0, 0.0)
     set_modelview_from_camera(Rt)
     #load_and_draw_model('toyplane.obj')
@@ -648,7 +646,6 @@ while(cap.isOpened()):
 
     event = pygame.event.poll()
     if event.type in (QUIT,KEYDOWN):
-        # pygame.image.save(window, "screenshot.jpeg")
         break
     pygame.display.flip()
     pygame.time.wait(1)
@@ -660,93 +657,3 @@ while(cap.isOpened()):
 
 cap.release()
 cv2.destroyAllWindows()
-
-
-#img = resizeImage("imgs/"+args['sceneImage'], 3000, 4000)
-
-
-
-
-
-
-
-
-
-'''
-Scene1:
-    [[  941.   548.]        (-0.15, 0.25, 0.0)
-    [  289.  3423.]         (0.35, 0.25, 0.0)
-    [ 1653.  3657.]    ->   (-0.3, -0.2, 0.0)
-    [ 2012.   276.]]        (0.3, -0.2, 0.0)
-
-Scene2:
-    [[  607.   750.]        (-0.3, 0.45, 0.0)
-    [  841.  3846.]         (0.5, 0.4, 0.0)
-    [ 2022.  3956.]    ->   (-0.25, -0.1, 0.0)
-    [ 2271.   743.]]        (0.5, -0.15, 0.0)
-
-Scene3:
-    [[  752.   155.]        (-0.15, 0.35, 0.0)
-    [  760.  3687.]         (0.55, 0.35, 0.0)
-    [ 2177.  3682.]    ->   (-0.15, -0.15, 0.0)
-    [ 2168.   167.]]        (0.55, -0.15, 0.0)
-
-Scene4:
-    [[  847.   266.]        (-0.15, 0.35, 0.0)
-    [ 1241.  3811.]         (0.45, 0.3, 0.0)
-    [ 2672.  3480.]    ->   (-0.1, -0.15, 0.0)
-    [ 1916.   515.]]        (0.6, -0.15, 0.0)
-
-Scene5:
-    [[  938.   778.]        (-0.2, 0.3, 0.0)
-    [  531.  3453.]         (0.25, 0.3, 0.0)
-    [ 2406.  3439.]    ->   (-0.3, -0.05, 0.0)
-    [ 1955.   777.]]        (0.35, -0.05, 0.0)
-'''
-
-# # top-left
-# x = newpts[0][0]
-# xTrans = -3.159875007*(10**-6)*(x**2) + 5.251907658*(10**-3)*x - 2.321547785
-# y = newpts[0][1]
-# yTrans = 9.045077384*(10**-7)*(y**2) - 8.375047582*(10**-4)*y + 4.755244553*(10**-1)
-# set_projection_from_camera(K,sz, -xTrans, yTrans, 0.0)
-# set_modelview_from_camera(Rt)
-# draw_teapot(0.09)
-# #bottom-left
-# x = newpts[1][0]
-# xTrans = -3.536631066*(10**-7)*(x**2) + 7.267013475*(10**-4)*x + 1.134324004*(10**-1)
-# y = newpts[1][1]
-# yTrans = -3.125855842*(10**-7)*(y**2) + 2.482822097*(10**-3)*y - 4.56691804
-# set_projection_from_camera(K,sz, -xTrans, yTrans, 0.0)
-# set_modelview_from_camera(Rt)
-# draw_teapot(0.09)
-# #bottom-right
-# x = newpts[2][0]
-# xTrans = 8.076727987*(10**-8)*(x**2) - 2.018464335*(10**-4)*x - 1.743398968*(10**-1)
-# y = newpts[2][1]
-# yTrans = 1.398736877*(10**-6)*(y**2) - 1.037301929*(10**-2)*y + 19.04864631
-# set_projection_from_camera(K,sz, xTrans, yTrans, 0.0)
-# set_modelview_from_camera(Rt)
-# draw_teapot(0.09)
-# #top-right
-# x = newpts[3][0]
-# xTrans = 4.649215193*(10**-6)*(x**2) - 1.927318923*(10**-2)*x + 20.34996295
-# y = newpts[3][1]
-# yTrans = 6.013892502*(10**-7)*(y**2) - 4.468728522*(10**-4)*y - 1.019617146*(10**-1)
-# set_projection_from_camera(K,sz, xTrans, yTrans, 0.0)
-# set_modelview_from_camera(Rt)
-# draw_teapot(0.09)
-
-
-
-
-# glutInit()
-# glutInitDisplayMode(GLUT_RGBA|GLUT_DOUBLE|GLUT_DEPTH)
-# glutInitWindowSize(747, 800)
-# glutInitWindowPosition(0, 0)
-# glutCreateWindow("oscAR")
-# glutDisplayFunc(drawScene())
-# glutReshapeFunc(reshape(747, 800))
-# glutIdleFunc(drawScene())
-# initGl(640, 800)
-# gluMainLoop()

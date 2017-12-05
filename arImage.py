@@ -2,20 +2,21 @@ import math
 import cv2
 import numpy as np
 import argparse
-from imutils import contours
 import imutils
+from imutils import contours
 from skimage.filters import threshold_adaptive
 from matplotlib import pyplot as plt
 
+import pickle
+from scipy import linalg
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 import pygame, pygame.image
 from pygame.locals import *
-import pickle
 from PIL import Image
+from PIL import ImageOps
 from PIL.ExifTags import TAGS
-from scipy import linalg
 
 
 class Camera(object):
@@ -123,7 +124,7 @@ def four_point_transform(image, pts):
     # return the warped image
     return warped
 
-def transformSurface(img):
+def transformSurface(img, query):
     '''
     Apply transform to make query image
     '''
@@ -160,7 +161,6 @@ def transformSurface(img):
         # can assume that we have found our screen
         if len(approx) == 4:
             screenCnt = approx
-            print screenCnt
             break
 
     # show the contour (outline) of the piece of paper
@@ -181,7 +181,7 @@ def transformSurface(img):
     # cv2.imshow("Scanned", imutils.resize(warped, height = 650))
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-    cv2.imwrite("imgs/" + args['queryImage'], warped)
+    cv2.imwrite(query, warped)
 
 
 def drawMatches(img1, kp1, img2, kp2, matches):
@@ -375,6 +375,7 @@ def draw_teapot(size):
     glEnable(GL_LIGHT0)
     glEnable(GL_DEPTH_TEST)
     glClear(GL_DEPTH_BUFFER_BIT)
+    glPushMatrix()
 
     # draw red teapot
     glMaterialfv(GL_FRONT,GL_AMBIENT,[0,0,0,0])
@@ -382,6 +383,16 @@ def draw_teapot(size):
     glMaterialfv(GL_FRONT,GL_SPECULAR,[0.7,0.6,0.6,0.0])
     glMaterialf(GL_FRONT,GL_SHININESS,0.25*128.0)
     glutSolidTeapot(size)
+
+    # saves screenshot of output window
+    # Issue: not saving 3d object in image
+    # glPixelStorei(GL_PACK_ALIGNMENT, 1)
+    # data = glReadPixels(0, 0, 800, 747, GL_RGBA, GL_UNSIGNED_BYTE)
+    # image = Image.frombytes("RGBA", sz, data)
+    # image = ImageOps.flip(image) # in my case image is flipped top-bottom for some reason
+    # image.save('imgs/glutout.png', 'PNG')
+    # glPopMatrix()
+    # glutSwapBuffers()
 
 def setup():
     '''
@@ -490,56 +501,6 @@ def load_and_draw_model(filename):
   obj = objloader.OBJ(filename,swapyz=True)
   glCallList(obj.gl_list)
 
-
-def drawScene():
-    cap = cv2.VideoCapture(0)
-    while(cap.isOpened()):
-        xaxis = 0
-        yaxis = 0
-        zaxis = 0
-        ret, frame = cap.read()
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
-        glTranslatef(0.0,0.0,-7.0)
-        glRotatef(x,1.0,0.0,0.0)
-        glRotatef(y,0.0,1.0,0.0)
-        glRotatef(z,0.0,0.0,1.0)
-
-        x -= .30
-        z -= 30
-
-        glutSwapBuffers()
-        cv2.imshow('frame',frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
-
-def initGl(width,height):
-    glClearColor(0.0,0.0,0.0,0.0)
-    glClearDepth(1.0)
-    glDepthFunc(GL_LESS)
-    glEnable(GL_DEPTH_TEST)
-    glShadeModel(GL_SMOOTH)
-    glMatrixMode(GL_PROJECTION)
-    glLoadIdentity()
-    gluPerspective(45.0, float(width)/float(height),0.1, 100.0)
-    glMatrixMode(GL_MODELVIEW)
-
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-    glEnable(GL_TEXTURE_2D)
-
-def reshape(width, height):
-    glViewport(0, 0, width, height)
-    glMatrixMode(GL_PROJECTION)
-    glLoadIdentity()
-    gluPerspective(45.0, float(width)/float(height), 0.1, 100.0)
-    glMatrixMode(GL_MODELVIEW)
-    glLoadIdentity()
-    gluLookAt(0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
-
 ###############################################################################
 ###############################################################################
 '''
@@ -552,22 +513,9 @@ TODO:
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-q", "--queryImage", required=True,
-	help="path to input image")
 ap.add_argument("-s", "--sceneImage", required=True,
-	help="path to input image")
+	help="name of scene image")
 args = vars(ap.parse_args())
-
-# cap = cv2.VideoCapture("scene.avi")
-# while(cap.isOpened()):
-#     ret, frame = cap.read()
-#
-#     cv2.imshow('frame',frame)
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
-#
-# cap.release()
-# cv2.destroyAllWindows()
 
 
 #img = resizeImage("imgs/"+args['sceneImage'], 3000, 4000)
@@ -575,11 +523,11 @@ args = vars(ap.parse_args())
 '''
 Feature matching
 '''
-query = "imgs/"+args["queryImage"]
+query = "imgs/query.jpg"
 scene = "imgs/"+args["sceneImage"]
 
 # extract receipt from the scene
-transformSurface(scene)
+transformSurface(scene, query)
 
 gray = cv2.imread(scene,0)
 h, w = gray.shape[:2]
@@ -654,71 +602,6 @@ set_modelview_from_camera(Rt)
 #load_and_draw_model('toyplane.obj')
 draw_teapot(0.09)
 
-'''
-Scene1:
-    [[  941.   548.]        (-0.15, 0.25, 0.0)
-    [  289.  3423.]         (0.35, 0.25, 0.0)
-    [ 1653.  3657.]    ->   (-0.3, -0.2, 0.0)
-    [ 2012.   276.]]        (0.3, -0.2, 0.0)
-
-Scene2:
-    [[  607.   750.]        (-0.3, 0.45, 0.0)
-    [  841.  3846.]         (0.5, 0.4, 0.0)
-    [ 2022.  3956.]    ->   (-0.25, -0.1, 0.0)
-    [ 2271.   743.]]        (0.5, -0.15, 0.0)
-
-Scene3:
-    [[  752.   155.]        (-0.15, 0.35, 0.0)
-    [  760.  3687.]         (0.55, 0.35, 0.0)
-    [ 2177.  3682.]    ->   (-0.15, -0.15, 0.0)
-    [ 2168.   167.]]        (0.55, -0.15, 0.0)
-
-Scene4:
-    [[  847.   266.]        (-0.15, 0.35, 0.0)
-    [ 1241.  3811.]         (0.45, 0.3, 0.0)
-    [ 2672.  3480.]    ->   (-0.1, -0.15, 0.0)
-    [ 1916.   515.]]        (0.6, -0.15, 0.0)
-
-Scene5:
-    [[  938.   778.]        (-0.2, 0.3, 0.0)
-    [  531.  3453.]         (0.25, 0.3, 0.0)
-    [ 2406.  3439.]    ->   (-0.3, -0.05, 0.0)
-    [ 1955.   777.]]        (0.35, -0.05, 0.0)
-'''
-
-# # top-left
-# x = newpts[0][0]
-# xTrans = -3.159875007*(10**-6)*(x**2) + 5.251907658*(10**-3)*x - 2.321547785
-# y = newpts[0][1]
-# yTrans = 9.045077384*(10**-7)*(y**2) - 8.375047582*(10**-4)*y + 4.755244553*(10**-1)
-# set_projection_from_camera(K,sz, -xTrans, yTrans, 0.0)
-# set_modelview_from_camera(Rt)
-# draw_teapot(0.09)
-# #bottom-left
-# x = newpts[1][0]
-# xTrans = -3.536631066*(10**-7)*(x**2) + 7.267013475*(10**-4)*x + 1.134324004*(10**-1)
-# y = newpts[1][1]
-# yTrans = -3.125855842*(10**-7)*(y**2) + 2.482822097*(10**-3)*y - 4.56691804
-# set_projection_from_camera(K,sz, -xTrans, yTrans, 0.0)
-# set_modelview_from_camera(Rt)
-# draw_teapot(0.09)
-# #bottom-right
-# x = newpts[2][0]
-# xTrans = 8.076727987*(10**-8)*(x**2) - 2.018464335*(10**-4)*x - 1.743398968*(10**-1)
-# y = newpts[2][1]
-# yTrans = 1.398736877*(10**-6)*(y**2) - 1.037301929*(10**-2)*y + 19.04864631
-# set_projection_from_camera(K,sz, xTrans, yTrans, 0.0)
-# set_modelview_from_camera(Rt)
-# draw_teapot(0.09)
-# #top-right
-# x = newpts[3][0]
-# xTrans = 4.649215193*(10**-6)*(x**2) - 1.927318923*(10**-2)*x + 20.34996295
-# y = newpts[3][1]
-# yTrans = 6.013892502*(10**-7)*(y**2) - 4.468728522*(10**-4)*y - 1.019617146*(10**-1)
-# set_projection_from_camera(K,sz, xTrans, yTrans, 0.0)
-# set_modelview_from_camera(Rt)
-# draw_teapot(0.09)
-
 
 while True:
     event = pygame.event.poll()
@@ -727,14 +610,3 @@ while True:
         break
     pygame.display.flip()
     pygame.time.wait(1)
-
-# glutInit()
-# glutInitDisplayMode(GLUT_RGBA|GLUT_DOUBLE|GLUT_DEPTH)
-# glutInitWindowSize(747, 800)
-# glutInitWindowPosition(0, 0)
-# glutCreateWindow("oscAR")
-# glutDisplayFunc(drawScene())
-# glutReshapeFunc(reshape(747, 800))
-# glutIdleFunc(drawScene())
-# initGl(640, 800)
-# gluMainLoop()
