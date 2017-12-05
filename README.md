@@ -16,6 +16,10 @@ There are a few things that need to be done in order to render 3d objects withou
 
 # 2. Feature Matching:
   * We want to be able to find and keep track of where our planar object is as we move around in the real world. Using feature matching can help solve this problem. By detecting keypoints in our query and scene image, we can be sure that we only look for parts of the images that contain a lot of information. The reason for this is that we only have to match on those keypoints as opposed to the entire image, which makes finding our planar object a lot easier.
+  
+  * There are a few different algorithms used for feature detecting such as ORB, SURF, SIFT. In this project we use ORB. Once the keypoints are found, we extract the descriptors. The descriptor is a vector that contains information about the feature point. 
+  
+  * The matching of feature points detect is done using a knnMatch which does a search of the nearest neighbor from one set of descriptors to another set. Afterwards, a ratio test is applied to filter out outliers based on 
 
 
 
