@@ -2,6 +2,15 @@
 Markerless AR is the process of rendering a 3d object into a real world environment without the need of a marker.
 
 # Usage:
+AR Using an Image:
+```
+python arImage.py -s sceneImageName
+```
+AR Using Video:
+```
+python arImage.py -s sceneVideoName
+```
+Note: Make sure the image or video exists within the imgs folder.
 
 # How it Works:
 There are a few things that need to be done in order to render 3d objects without a marker:
@@ -9,7 +18,7 @@ There are a few things that need to be done in order to render 3d objects withou
   * Feature Matching
   * Find Homography
   * Calculate camera intrinsic and extrinsic matrices
-  * Make above information understandable for OpenGL
+  * Tie it all together
 
 # 1. Find planar object:
   * Given a scene image (or frame if using a video), we must find a planar object (magazine, paper, book, etc.) that we will use to attach our 3d object to like we would with a marker. It seems just as restricting as having to rely on a marker but the main difference is that these planar objects exist naturally in the real world whereas markers do not.
@@ -33,8 +42,8 @@ There are a few things that need to be done in order to render 3d objects withou
   
   * The camera extrinsic matrix ([R|t]) is a 4x3 matrix which describes the camera's position in the real world and the direction it is pointing in. The matrix has two components: a 3x3 rotation matric (R) and a 3x1 translation matrix (t). This matrix can be extracted from the homography or using K and built in OpenCV functions.
   
-# Make Results Understandable for OpenGL:
-  * Once we have all the components found above, we must format it so that OpenGL knows what to do with everything. This is done with built in functions
+# Tie it all together:
+  * Once we have all the components found above, we must format it so that OpenGL knows what to do with everything. This is done with the Python wrapper for OpenGL, PyOpenGL.
 
 
 
