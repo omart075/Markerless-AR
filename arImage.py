@@ -585,6 +585,7 @@ Rt = np.dot(linalg.inv(K),cam2.P)
 '''
 
 
+
 '''
 3d rendering
 '''
