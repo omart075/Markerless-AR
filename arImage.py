@@ -517,7 +517,6 @@ ap.add_argument("-s", "--sceneImage", required=True,
 	help="name of scene image")
 args = vars(ap.parse_args())
 
-
 #img = resizeImage("imgs/"+args['sceneImage'], 3000, 4000)
 
 '''
