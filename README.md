@@ -50,3 +50,31 @@ There are a few things that need to be done in order to render 3d objects withou
   
 # Tie it all together:
   * Once we have all the components found above, we must format it so that OpenGL knows what to do with everything. This is done with the Python wrapper for OpenGL, PyOpenGL.
+  
+# Dependencies:
+  * OpenCV
+  * Numpy
+  ```
+  pip install numpy
+  ```
+  * Imutils
+  ```
+  pip install imutils
+  ```
+  * Scikit-image
+  ```
+  pip install scikit-image
+  ```
+  * Matplotlib (if python installed with homebrew)
+  ```
+  pip install --user matplotlib
+  ```
+  * PyOpenGl
+  ```
+  pip install PyOpenGL PyOpenGL_accelerate
+  ```
+  * [Pygame](http://webprojects.eecs.qmul.ac.uk/fa303/pgs/install.html)
+  * Pillow
+  ```
+  pip install Pillow
+  ```
