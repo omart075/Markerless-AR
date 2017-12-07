@@ -33,12 +33,14 @@ There are a few things that need to be done in order to render 3d objects withou
   * The matching of feature points is done using a knnMatch which does a search of the nearest neighbor from one set of descriptors to another set. Afterwards, a ratio test is applied to filter out outliers based on distance between the two matches being compared.
   
 # 3. Find Homography
-  * With the above filtered set of matched feature points, we can now calculate the homography. A homography is a 3x3 transformation matrix that maps the points of one image to another if they are part of the same planar surface.
+  * With the above filtered set of matched feature points, we can now calculate the homography. A homography is a 3x3 transformation matrix that maps the points of one image to another if they are part of the same planar surface:
   
   * If we wanted to, we could refine the homography by applying a warping perspective on the scene using the homography and reapplying the feature matching and descriptor extraction. 
   
 # 4. Calculate Camera Intrinsic and Extrinsic Matrices
-  * The camera intrinsic matrix (referred to as K) is a 3x3 matrix used to transform 3d camera coordinates to 2d homogeneous image coordinates. The matrix is made up of the focal length (fx and fy), the principal point offsets (x0 and y0), and axis skew (s). This matrix can be calculated based on some assumptions but the focal length must be found with a specific calibration method. You can also obtain the entire matrix by calibrating the camera with a chessboard, which OpenCV provides a built in function just for that.
+  * The camera intrinsic matrix (referred to as K) is a 3x3 matrix used to transform 3d camera coordinates to 2d homogeneous image coordinates. 
+    ![Alt text](/imgs/K.jpg?raw=true "Camera Intrinsics")
+  The matrix is made up of the focal length (fx and fy), the principal point offsets (x0 and y0), and axis skew (s). This matrix can be calculated based on some assumptions but the focal length must be found with a specific calibration method. You can also obtain the entire matrix by calibrating the camera with a chessboard, which OpenCV provides a built in function just for that.
   
   * The camera extrinsic matrix ([R|t]) is a 4x3 matrix which describes the camera's position in the real world and the direction it is pointing in. The matrix has two components: a 3x3 rotation matric (R) and a 3x1 translation matrix (t). This matrix can be extracted from the homography or using K and built in OpenCV functions.
   
