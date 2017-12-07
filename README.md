@@ -60,5 +60,3 @@ There are a few things that need to be done in order to render 3d objects withou
   * Matplotlib
   * PyOpenGl
   * Pillow
-
-Note: Most can be installed via pip
