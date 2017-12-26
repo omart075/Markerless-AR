@@ -1,6 +1,16 @@
 # Markerless-AR
 Markerless AR is the process of rendering a 3d object into a real world environment without the need of a [marker](https://docs.opencv.org/3.1.0/d5/dae/tutorial_aruco_detection.html).
 
+# Dependencies:
+  * OpenCV
+  * Pygame
+  * Numpy
+  * Imutils
+  * Scikit-image
+  * Matplotlib
+  * PyOpenGl
+  * Pillow
+
 # Usage:
 AR Using an Image:
 ```
@@ -50,13 +60,3 @@ There are a few things that need to be done in order to render 3d objects withou
   
 # Tie it all together:
   * Once we have all the components found above, we must format it so that OpenGL knows what to do with everything. This is done with the Python wrapper for OpenGL, PyOpenGL.
-  
-# Dependencies:
-  * OpenCV
-  * Pygame
-  * Numpy
-  * Imutils
-  * Scikit-image
-  * Matplotlib
-  * PyOpenGl
-  * Pillow
