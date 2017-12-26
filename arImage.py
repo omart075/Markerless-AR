@@ -549,7 +549,6 @@ dist = calibrations['dist']
 rvecs = calibrations['rvecs']
 tvecs = calibrations['tvecs']
 
-
 # read Exif header for aperture
 # img = Image.open(scene)
 # exif_data = img._getexif()
