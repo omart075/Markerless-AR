@@ -60,3 +60,6 @@ There are a few things that need to be done in order to render 3d objects withou
   
 # Tie it all together:
   * Once we have all the components found above, we must format it so that OpenGL knows what to do with everything. This is done with the Python wrapper for OpenGL, PyOpenGL.
+  ![Alt text](/imgs/output_1.png?raw=true "Script in Action")
+  ![Alt text](/imgs/output_2.png?raw=true "Script in Action")
+  ![Alt text](/imgs/output_3.png?raw=true "Script in Action")
