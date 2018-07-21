@@ -49,17 +49,17 @@ There are a few things that need to be done in order to render 3d objects withou
   
 # 4. Calculate Camera Intrinsic and Extrinsic Matrices
   * The camera intrinsic matrix (referred to as K) is a 3x3 matrix used to transform 3d camera coordinates to 2d homogeneous image coordinates.  
-  ![Alt text](/imgs/K_initial.jpg?raw=true "Camera Intrinsics")  
+  ![Alt text](/imgs/readme_imgs/K_initial.jpg?raw=true "Camera Intrinsics")  
   The matrix is made up of the focal length (fx and fy), the principal point offsets (cx and cy), and axis skew (s), which in most cases can be set to 0. This gives us:    
-  ![Alt text](/imgs/K_final.jpg?raw=true "Camera Intrinsics")  
+  ![Alt text](/imgs/readme_imgs/K_final.jpg?raw=true "Camera Intrinsics")  
   This matrix can be calculated based on some assumptions but the focal length must be found with a specific calibration method. You can also obtain the entire matrix by calibrating the camera with a chessboard, which OpenCV provides a built in function just for that.
   
   * The camera extrinsic matrix ([R|t]) is a 3x4 matrix which describes the camera's position in the real world and the direction it is pointing in.  
-  ![Alt text](/imgs/Rt.jpg?raw=true "Camera Intrinsics")  
+  ![Alt text](/imgs/readme_imgs/Rt.jpg?raw=true "Camera Intrinsics")  
   The matrix has two components: a 3x3 rotation matric (R) and a 3x1 translation matrix (t). This matrix can be extracted from the homography or using K and built in OpenCV functions.
   
 # Tie it all together:
   * Once we have all the components found above, we must format it so that OpenGL knows what to do with everything. This is done with the Python wrapper for OpenGL, PyOpenGL.
-  ![Alt text](/imgs/output_1.png?raw=true "Script in Action")
-  ![Alt text](/imgs/output_2.png?raw=true "Script in Action")
-  ![Alt text](/imgs/output_3.png?raw=true "Script in Action")
+  ![Alt text](/imgs/readme_imgs/output_1.png?raw=true "Script in Action")
+  ![Alt text](/imgs/readme_imgs/output_2.png?raw=true "Script in Action")
+  ![Alt text](/imgs/readme_imgs/output_3.png?raw=true "Script in Action")
